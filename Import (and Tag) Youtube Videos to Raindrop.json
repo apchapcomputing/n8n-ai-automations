@@ -1,0 +1,329 @@
+{
+  "name": "Import (and Tag) Youtube Videos to Raindrop",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "799df8be-c880-4471-96bb-40ac25b8442f",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "resource": "playlistItem",
+        "operation": "getAll",
+        "playlistId": "PLqzJAJ--TbFuw8WdRHAEAc4mWLscLAUqx",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ],
+      "id": "fb9d8bea-bf33-49e9-9e77-0e6076ec7e34",
+      "name": "Get many playlist items",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "o1pjgb7FgkEbV6rs",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "get",
+        "videoId": "={{ $json.contentDetails.videoId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        432,
+        0
+      ],
+      "id": "daf40ebe-e9eb-4cc4-85d4-b7e0d0eb61d7",
+      "name": "Get a video",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "o1pjgb7FgkEbV6rs",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "bookmark",
+        "operation": "create",
+        "collectionId": "={{ 35117625 }}",
+        "link": "=https://youtu.be/{{ $('Get a video').item.json.id }}?si=fLPolZIKa28E53e6",
+        "additionalFields": {
+          "tags": "={{ $json.output.tags.map(tag => `\"${tag.toLowerCase()}\"`).join(', ') }}",
+          "title": "={{ $('Get a video').item.json.snippet.title }}"
+        }
+      },
+      "type": "n8n-nodes-base.raindrop",
+      "typeVersion": 1,
+      "position": [
+        256,
+        256
+      ],
+      "id": "472c34ae-7ae1-464d-bef0-ac33b9a3d2c1",
+      "name": "Create a bookmark",
+      "credentials": {
+        "raindropOAuth2Api": {
+          "id": "qrgNU2XVyY83atSf",
+          "name": "Raindrop account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -48,
+        480
+      ],
+      "id": "2d1ea89b-202a-41ec-a778-31e21d49577f",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "pCBilhgbn85gx29y",
+          "name": "OpenAI API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"tags\": [\"music\", \"creativity\", \"writing\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        480
+      ],
+      "id": "bd12666a-3481-406c-bd1a-939b44eeb2c8",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Get a video').item.json.snippet.title }}: {{ $('Get a video').item.json.snippet.description }}\nTags: {{ $('Get a video').item.json.snippet.tags }}\nTopics: {{ $('Get a video').item.json.topicDetails.topicCategories }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Hi, you are helping me export and save my favorite youtube videos to my bookmarks manager. I'd like you to create up to 3 tags to best describe the content of the video based on the youtube title, description, tags, and topics. If possible, try to reuse a tag that already exists in my bookmarks manager Raindrop.io"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -112,
+        256
+      ],
+      "id": "f5bf28ef-679d-49cb-b510-99459d73d348",
+      "name": "AI Agent -- Tagger",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "resource": "tag",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.raindropTool",
+      "typeVersion": 1,
+      "position": [
+        80,
+        480
+      ],
+      "id": "e40fd86c-f9f2-4d9a-935a-f56a955c3c5d",
+      "name": "Get many tags in Raindrop",
+      "credentials": {
+        "raindropOAuth2Api": {
+          "id": "qrgNU2XVyY83atSf",
+          "name": "Raindrop account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "playlistItem",
+        "operation": "delete",
+        "playlistItemId": "={{ $('Get many playlist items').item.json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        432,
+        256
+      ],
+      "id": "745b077b-fe98-454a-800e-9e229f9ea925",
+      "name": "Delete a playlist item",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "o1pjgb7FgkEbV6rs",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -144
+      ],
+      "id": "11dbcd45-d8c1-42fa-a407-28d8b841ad62",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get many playlist items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many playlist items": {
+      "main": [
+        [
+          {
+            "node": "Get a video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a video": {
+      "main": [
+        [
+          {
+            "node": "AI Agent -- Tagger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent -- Tagger",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent -- Tagger",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent -- Tagger": {
+      "main": [
+        [
+          {
+            "node": "Create a bookmark",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many tags in Raindrop": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent -- Tagger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a bookmark": {
+      "main": [
+        [
+          {
+            "node": "Delete a playlist item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a playlist item": {
+      "main": [
+        [
+          {
+            "node": "Get many playlist items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many playlist items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "99fae728-6193-4a53-a815-117c164ff0a5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dac289e0396bcbd5eb194ebc2b52ee53e2f255b706eb7dd6a16dbca09fcf150c"
+  },
+  "id": "qhv1jlv15fr1vmbR",
+  "tags": []
+}
